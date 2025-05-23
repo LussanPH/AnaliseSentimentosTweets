@@ -48,8 +48,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 vetorizador = CountVectorizer(
     lowercase=True,
-    stop_words="english",
-    min_df=2,
+    stop_words="english",#Remove as stopwords
+    min_df=2,#As palavras devem ter aparecido no mínimo duas vezes no documento
     dtype=np.int16
 )
 
@@ -57,12 +57,12 @@ vetorizador.fit(df['texts'])
 #print(vetorizador.get_feature_names_out())
 
 represent = vetorizador.transform(df["texts"])
-rep_array = represent.toarray()
+rep_array = represent.toarray()#Resulta uma matriz de frequência das palavras do vocabulário em cada documento
 #print(rep_array)
 
 from sklearn.metrics.pairwise import cosine_similarity
 
-matrizSim = cosine_similarity(rep_array)
+matrizSim = cosine_similarity(rep_array)#É realizada uma similaridade entre os textos do corpora
 #print(matrizSim)
 
 def bestSim(id, matriz):
