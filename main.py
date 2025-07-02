@@ -1,148 +1,93 @@
-import random as rd
-import numpy as np
-class Agente:
-    def __init__(self, id, xy, estado):
-        self.id = id
-        self.x, self.y = xy
-        self.estado = estado
+import mesa
+#print(mesa.__version__)
 
-    def getXy(self):
-        return [self.x, self.y]    
-    
-    def getId(self):
-        return self.id
-    
-    def getEstado(self):
-        return self.estado
+from mesa import Agent
 
-    def mover(self):
-        if(self.x == 0 and self.y == 0):
-            x = rd.choice([0, 1])
-            y = rd.choice([0, 1])
-            self.x += x
-            self.y += y
-        elif(self.x == self.tam-1 and self.y == self.tam-1):
-            x = rd.choice([0, -1])
-            y = rd.choice([0, -1])
-            self.x += x
-            self.y += y  
-        elif(self.x == self.tam-1 and self.y == 0):
-            x = rd.choice([0, -1])
-            y = rd.choice([0, 1])
-            self.x += x
-            self.y += y
-        elif(self.x == 0 and self.y == self.tam-1):
-            x = rd.choice([0, 1])
-            y = rd.choice([0, -1])
-            self.x += x
-            self.y += y          
-        elif(self.x == 0):
-            x = rd.choice([0, 1])
-            y = rd.choice([0, 1, -1])    
-            self.x += x
-            self.y += y
-        elif(self.y == 0):
-            x = rd.choice([0, 1, -1])
-            y = rd.choice([0, 1])    
-            self.x += x
-            self.y += y
-        elif(self.x == self.tam-1):
-            x = rd.choice([0, -1])
-            y = rd.choice([0, 1, -1])    
-            self.x += x
-            self.y += y
-        elif(self.y == self.tam-1):
-            x = rd.choice([0, 1, -1])
-            y = rd.choice([0, -1])    
-            self.x += x
-            self.y += y
-        else:
-            x = rd.choice([0, 1, -1])
-            y = rd.choice([0, 1, -1])    
-            self.x += x
-            self.y += y
-#Quantidade de agentes, tamanho do grid, quantidade inicial de infectados, porcentagem de infecção
-class Ambiente:
-    def __init__(self, quan, tam, quanInicial, PorcenInfec, quanDias):
-        self.quan = quan
-        self.tam = tam
-        self.quanInicial = quanInicial
-        self.PorcenInfec = PorcenInfec
-        self.quanDias = quanDias
-        self.listaAgentes = []
-        
-    def gerarAgentes(self, grid):
-        estado = 'S'
-        id = 1
-        x = 0
-        y = 0
-        for n in range(self.quan):
-            if(self.quanInicial != 0):
-                estado = 'I'
-                self.quanInicial -= 1
+class Habitante(Agent):
+    def __init__(self, unique_id, model, idade, saneamento, infectado=False):
+        super().__init__(unique_id, model)
+        self.idade = idade
+        self.saneamento = saneamento
+        self.infectado = infectado
 
-            x = rd.randint(0, self.tam-1)
-            y = rd.randint(0, self.tam-1)
-            a = Agente(id, [x, y], estado)
-            grid[y][x].append(a.getId())
-            id += 1
-
-    def gerarGrid(self):
-        grid = []
-        for i in range(self.tam):
-            listai = []
-            grid.append(listai)
-            for j in range(self.tam):
-                listaj = []
-                listai.append(listaj)
-        return grid        
-
-    def printarGrid(self, grid):
-        for linha in grid:
-            print(linha)
-        print("\n")    
-
-    def removerPessoa(self, valoresXy, id, grid):
-        for a in grid[valoresXy[1], valoresXy[0]]:
-            idAtual = a.getId()
-            if idAtual == id:
-                grid[valoresXy[1], valoresXy[0]].remove(a)
-                return
+    def step(self):
+        if self.infectado:
+            vizinhos = self.model.grid.get_neighbors(self.pos, moore=True, include_center=False)#moore: Pega as 8 casas vizinhas a posição; include_center: Verifica se a célula que contém o elemento deve ser incluida; self.pos: Posição do agente no grid
+            for agente in vizinhos:
+                if not agente.infectado:
+                    chance = 0.2
+                    # Se não tem saneamento, chance aumenta
+                    if not agente.saneamento:
+                        chance += 0.3
+                    if self.random.random() < chance:
+                        agente.infectado = True
+                        '''self.model.datacollector.add_table_row("tabela", {
+                          "Agente": self.unique_id,
+                          "Evento": "Infectado",
+                          "Tempo": self.model.schedule.time
+                        })'''
             
-    def adicionarPessoa(self, valoresXy) #Falta adicionar pessoa       
-            
+from mesa import Model
+from mesa.space import MultiGrid
+from mesa.time import RandomActivation
+from mesa.datacollection import DataCollector
+from mesa.visualization.modules import CanvasGrid
+from mesa.visualization.ModularVisualization import ModularServer
+import random
 
-    def simulacao(self):
-        grid = self.gerarGrid()
-        self.gerarAgentes(grid)
-        self.printarGrid(grid)
+def agent_portrayal(agent):
+    if agent.infectado:
+      color = 'red'
+    else:
+      color = 'green'
+    return {
+        "Shape": "circle",
+        "Filled": "true",
+        "Layer": 0,
+        "Color": color,
+        "r": 0.5
+    }
 
-        for d in range(self.quanDias):
+class ModeloVirus(Model):
+    def __init__(self, N, largura, altura):
+        super().__init__()
+        self.num_agentes = N
+        self.grid = MultiGrid(largura, altura, torus=False)#torus não permite que o agente saia da borda e apareca do outro lado do mapa
+        self.schedule = RandomActivation(self)
 
-            for a in self.listaAgentes:
+        for i in range(self.num_agentes):
+            idade = random.randint(0, 90)
+            saneamento = random.random() < 0.7  # 70% com saneamento
+            infectado = i == 0  # só o primeiro começa infectado
 
-                valoresXY = a.getXy()
-                estado = a.getEstado()
-                id = a.getId()
+            agente = Habitante(i, self, idade, saneamento, infectado)
+            self.schedule.add(agente)
 
-                #if(pessoas > 1 and estado == 'I'):
-                    #self.infectar(pessoas, self.listaAgentes)
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(agente, (x, y))
 
-                self.removerPessoa(valoresXY, id, grid)
-                a.mover()
-                valoresXY = a.getXy()
-                grid[valoresXY[1], valoresXY[0]].append(a)
+        self.datacollector = DataCollector(
+            model_reporters={"Total Infected": lambda m: sum([a.infectado for a in m.schedule.agents])},
+            agent_reporters={"Infected": "infectado"}
+        )
 
-            self.printarGrid()    
+        '''self.datacollector = DataCollector(
+            tables={"tabela": ["Agente", "Evento", "Tempo"]}
+        )'''    
 
-        self.printarGrid()   
+    def step(self):
+      self.datacollector.collect(self)
+      self.schedule.step()
 
+grid = CanvasGrid(agent_portrayal, 10, 10, 500, 500)
 
+server = ModularServer(
+    ModeloVirus,
+    [grid],
+    "Modelo de Infecção",
+    {"N": 100, "largura": 10, "altura": 10}
+)
 
-
-
-amb = Ambiente(10, 5, 2, 0.1, 10)
-amb.simulacao()
-
-
-
+server.port = 8522  # Porta padrão
+server.launch()
